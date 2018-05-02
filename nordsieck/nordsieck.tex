@@ -1,0 +1,87 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[nohead]{geometry}
+\usepackage{amsmath,amsfonts,physics}
+\geometry{left=1in,right=1in,top=0.6in,bottom=1in}
+\usepackage[capitalise,noabbrev]{cleveref}
+\usepackage[bottom]{footmisc}
+\usepackage{multicol}
+
+\setlength{\columnseprule}{0.4pt}
+\setcounter{footnote}{1}
+\title{Nordsieck Form Implementation Note}
+\author{Yingbo Ma\thanks{Email: \tt{mayingbo5@gmail.com},
+                         GitHub: \tt{@YingboMa}}}
+\date{April 2018}
+
+\begin{document}
+\maketitle
+%\tableofcontents
+
+\section*{Notations}
+\begin{multicols}{2}
+  \begin{itemize}
+    \item For any variable $X$, let $X_n$ denote the $n$-th step of the variable $X$.
+    \item For any variable $X$, let $\hat{X}$ denote the predicted value of the variable $X$.
+    \item Let $\otimes$ denote the Kronecker product.
+    \item Let $q$ denote the order of the method.
+    \item Let $u$ denote a vector of dependent variables.
+    \item Let $t$ denote a scalar independent variable.
+    \columnbreak
+    \item Let $F$ denote the vector equation for a ordinary differential equation
+      $u' = F(u, t)$.
+    \item Let $z_n$ denote the Nordsieck vector, which is
+      \[
+        z_n = \left[\frac{y_n}{0!}, h\frac{y_n'}{1!}, h^2\frac{y_n''}{2!},
+        \cdots, h^q\frac{y_n^{(q)}}{q!}\right]^T.
+      \]
+    \item Let $A(q)$ denote a $(q+1)\times (q+1)$ Pascal triangle matrix (lower
+      triangular).
+    \item Let $P(q)$ denote a $(q+1)\times (q+1)$ Pascal triangle matrix (upper
+      triangular).
+  \end{itemize}
+\end{multicols}
+
+\section{The General Form of Nordsieck Methods}
+The Adams methods are usually presented as
+\begin{equation}\label{eq:Adams_int}
+  u_{n+1} = u_n + \int_{t_n}^{t_{n+1}} P(\tau) \dd{\tau},
+\end{equation}
+where $P(t)$ is an interpolation polynomial through points $t_i, F_i$ for
+$i=n-q+1,\cdots,n$. The backward differentiation formula methods are usually
+presented as
+\begin{equation}\label{eq:BDF_int}
+  \sum_{j=1}^q j^{-1}\nabla^ju_{n+1} = hF_{n+1},
+\end{equation}
+where $\nabla$ is a backward difference operator\footnote{A backward
+difference operator has the recurrence relation of
+\[
+  \nabla^0u_n = u_n,\quad \nabla^{j+1}u_n = \nabla^ju_n-\nabla^ju_{n-1}.
+\]}.
+However, another perspective of those multi-step numerical schemes are from
+polynomials with constraints directly. That is, a polynomial with $L\equiv q+1$
+constraints one can full encode ~\cref{eq:Adams_int} and~\cref{eq:BDF_int}.
+
+\subsubsection{Adams Methods}
+Explicit Adams methods can be thought as a polynomial interpolation that
+fulfills
+\begin{align}
+  \eta'_{n-1}(t_{n-i})&=F_{n-i}\qq{where} i=1,2,\cdots,q \\
+  \eta_{n-1}(t_{n-1})&=u_{n-1},
+\end{align}
+while the implicit Adams methods are polynomials that fulfills
+\begin{align}
+  \eta'_{n}(t_{n})&=F_{n}\qq{where} i=0,1,\cdots,q-1 \\
+  \eta_{n}(t_{n})&=u_{n}.
+\end{align}
+Here, we define the predictors as a polynomial interpolation
+\begin{equation}
+  \hat{u}_n = \eta_{n-1}(t_n),\quad \hat{u}'_n = \eta'_{n-1}(t_n).
+\end{equation}
+
+\subsubsection{BDF Methods}
+
+\section{Calculation of Coefficients}
+
+\section{Equivalence with Adams and BDF methods}
+
+\end{document}
