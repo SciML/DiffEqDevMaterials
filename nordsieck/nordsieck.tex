@@ -85,14 +85,14 @@ essence, a Taylor expansion. Thus, the formula for the predictor reads
 \end{equation}
 While one can construct the Pascal matrix explicitly
 \begin{lstlisting}
-  P(q) = [i>=j ? binomial(i,j) : 0 for i in 1:q+1, j in 1:q+1]
+P(q) = [i>=j ? binomial(i,j) : 0 for i in 1:q+1, j in 1:q+1]
 \end{lstlisting}
 and perform matrix-matrix multiply to get $z_n$, a much efficient method is to
 write a \texttt{for} loop.
 \begin{lstlisting}
-  for i in 1:q, j in q:-1:i
-    z[j] = z[j] + z[j+1]
-  end
+for i in 1:q, j in q:-1:i
+  z[j] = z[j] + z[j+1]
+end
 \end{lstlisting}
 
 Now we have a formulation for the predictor that is based on Taylor expansion.
@@ -112,16 +112,123 @@ where $P(t)$ is an interpolation polynomial through points $t_i, F_i$ for
 $i=n-q+1,\cdots,n$.
 Explicit Adams methods can be thought as a polynomial interpolation that
 fulfills
-\begin{align}
+\begin{align} \label{eq:adams1}
   \pi_{n-1}'(t_{n-i})&=F_{n-i}\qq{where} i=1,2,\cdots,q \\
   \pi_{n-1}(t_{n-1})&=u_{n-1},
 \end{align}
 while the implicit Adams methods are the same with polynomials that fulfills
-\begin{align}
+\begin{align} \label{eq:adams2}
   \pi_{n}(t_{n-i})'&=F_{n-i}\qq{where} i=0,1,\cdots,q-1 \\
   \pi_{n}(t_{n-1})&=u_{n-1} \\
   \pi_{n}(t_{n})&=u_{n}.
 \end{align}
+Here, we define that $y'_n$ is $F_n$. Note that those conditions are equivalent
+with the classical linear multi-step form
+\begin{equation}
+  u_n = u_{n-1} h_n\sum_{i=0}^{q-1}\beta_{ni}y'_{n-i}.
+\end{equation}
+Here the coefficients $\beta_{ni}$ dependents on $h_j$ and order $q$. Now,
+define $\hat{y}_n = \pi_{n-1}(t_n)$ and $\hat{y}'_n = \pi'_{n-1}(t_n)$. We have
+\begin{equation} \label{eq:nl_adams}
+  hy'_n = hF_n = h\hat{y}'_n + \Delta_n l_1,
+\end{equation}
+where $\Delta_n = \pi_n - \pi_{n-1}, h=h_n$ and $l_1 =
+\beta_{n0}^{-1}$. The $\Delta$ vector in \cref{eq:nl_adams} can be solved by
+function iteration.
+\begin{lstlisting}
+# Zero out the difference vector
+Delta .= zero(eltype(Delta))
+# `k' is a counter for convergence test
+k = 0
+# Start the functional iteration & store the difference into `Delta'
+while true
+  @. ratetmp = inv(l[2])*muladd(dt, ratetmp, -z[2])
+  @. integrator.u = ratetmp + z[1]
+  @. Delta = ratetmp - Delta
+  del = norm(cache.Delta)
+  # Convergence test
+  test_rate <= one(test_rate) && return true
+  # Divergence criteria
+  (k == max_iter) || (k >= 2 && del > div_rate * del_prev) && return false
+  del_prev = del
+  integrator.f(ratetmp, integrator.u, p, dt+t)
+end
+\end{lstlisting}
+
+From \cref{eq:adams1} and \cref{eq:adams2}, we see that
+\begin{equation}
+  \Delta_n(t_n) = u_n - \hat{u}_n \equiv e_n,\; \Delta_n(t_{n-1}) = 0,\;
+  \Delta'_n(t_{n-1}) = 0, \qq{where} i=1,2,\cdots,q-1.
+\end{equation}
+Thus we have
+\begin{equation}
+  \Delta_n(t) = \Delta_n(t_n+hx) = \Lambda_n(x)e_n, \quad x = (t-t_n)/h,
+\end{equation}
+where $\Lambda_n$ is a scalar polynomial that fulfills the conditions
+\begin{equation}
+  \Lambda_n(0)=1,\; \Lambda_n(-1) = 0,\; \Lambda'_n(\Xi_i) = 0,\qq{where}
+  i=1,2,\cdots,q-1,\; \Xi_i \equiv (t_n-t_{n-i})/h.
+\end{equation}
+Hence, we can write $\Lambda_n$ as
+\begin{equation}
+  \Lambda_n(x) = \frac{\int_{-1}^x\prod_{i=1}^{q-1} (u+\Xi_i) \dd{u}}
+          {\underbrace{\int_{-1}^0\prod_{i=1}^{q-1} (u+\Xi_i)
+          \dd{u}}_\text{constant}}
+               = \sum_{j=1}^{q+1} l_jx^j.
+\end{equation}
+We can compute the vector $l_j$ by calculating the coefficients of
+$\prod_{i=1}^{q-1} (u+\Xi_i)$ and integrate it with some normalization. Here is
+an implementation which uses Vieta's formulas,
+\begin{equation}
+  \sum_{1\leq i_{1}<i_{2}<\cdots <i_{k}\leq n}x_{i_{1}}x_{i_{2}}\cdots
+  x_{i_{k}}=(-1)^{k}l_{n-k},
+\end{equation}
+where $x_j$ is the $j$-th roots of a polynomial.
+\begin{lstlisting}
+# This function computes the integral, from -1 to 0, of a polynomial
+# `P(x)` from the coefficients of `P` with an offset `k`.
+function int01dx(a, deg, k)
+  @inbounds begin
+    int = zero(eltype(a))
+    sign = one(eltype(a))
+    for i in 1:deg
+      int += sign * a[i]/(i+k)
+      sign = -sign
+    end
+    return int
+  end
+end
+
+function calc_coeff!(cache::T) where T
+  @unpack m, l, tau = cache
+  ZERO, ONE = zero(m[1]), one(m[1])
+  dtsum = dt = tau[1]
+  order = cache.step
+  m[1] = ONE
+  for i in 2:order+1
+    m[i] = ZERO
+  end
+  # initialize Xi_inv
+  Xi_inv = dt / dtsum
+  # compute coefficients from the Newton polynomial
+  for j in 1:order-1
+    Xi_inv = dt / dtsum
+    for i in j:-1:1
+      m[i+1] += m[i] * Xi_inv
+    end
+    dtsum += tau[j+1]
+  end
+
+  M0 = int01dx(m, order, 0)
+  M1 = int01dx(m, order, 1)
+  M0_inv = inv(M0)
+  l[1] = ONE
+  for i in 1:order
+    l[i+1] = M0_inv * m[i] / i
+  end
+  cache.tq = M1 * M0_inv * Xi_inv
+end
+\end{lstlisting}
 
 \subsubsection{BDF Methods} \label{subsec:bdf}
 The backward differentiation formula methods are usually
