@@ -5,6 +5,25 @@
 \usepackage[capitalise,noabbrev]{cleveref}
 \usepackage[bottom]{footmisc}
 \usepackage{multicol}
+\usepackage{todo}
+
+\crefformat{section}{\S#2#1#3}
+\crefformat{subsection}{\S#2#1#3}
+\crefformat{subsubsection}{\S#2#1#3}
+
+\usepackage{listings}
+\lstdefinelanguage{julia}{
+  basicstyle=\small\ttfamily,
+  showspaces=false,
+  showstringspaces=false,
+  keywordstyle={\textbf},
+  morekeywords={if,else,elseif,while,for,begin,end,quote,try,catch,return,local,abstract,function,generated,macro,ccall,finally,typealias,break,continue,type,global,module,using,import,export,const,let,bitstype,do,in,baremodule,importall,immutable},
+  escapeinside={~}{~},
+  morecomment=[l]{\#},
+  commentstyle={},
+  morestring=[b]",
+}
+\lstset{language=julia, numbers=left, numberstyle=\tiny, mathescape=true}
 
 \setlength{\columnseprule}{0.4pt}
 \setcounter{footnote}{1}
@@ -42,14 +61,72 @@
 \end{multicols}
 
 \section{The General Form of Nordsieck Methods}
+In the Nordsieck formulation of multi-step methods we first need to find
+interpolating polynomial $\pi_{n-1}$ and $\pi_n$, which is going to be
+introduced in \cref{subsec:adams} for Adams-Bashforth method and
+\cref{subsec:bdf} for BDF(Backward differentiation formula) method. The
+predictor part in the Nordsieck formulation is independent from the choice of
+interpolating polynomials. This this subsection, we going to solely discuss the
+predictor.
+
+A Nordsieck vector is a vector that is in the form of
+\begin{equation}
+        z_n = \left[\frac{y_n}{0!}, h\frac{y_n'}{1!}, h^2\frac{y_n''}{2!},
+        \cdots, h^q\frac{y_n^{(q)}}{q!}\right]^T.
+\end{equation}
+Note that this derivatives $y_{n-1}^{(j)}$ are not the exact values of
+$F^{(j)}_{n-1}$, and they are the approximations from a interpolation
+polynomial $\pi_{n-1}^{(j)}(t_{n-1})$ with the order of accuracy
+$\mathcal{O}(h^{q+1})$ if $y_{n-1}$ has the correct order. Now, we can
+propagate the $z_{n-1}$ to $\hat{z}_{n}$ by a Pascal triangle matrix, which in
+essence, a Taylor expansion. Thus, the formula for the predictor reads
+\begin{equation}
+  \hat{z}_n = z_{n-1}P(q).
+\end{equation}
+While one can construct the Pascal matrix explicitly
+\begin{lstlisting}
+  P(q) = [i>=j ? binomial(i,j) : 0 for i in 1:q+1, j in 1:q+1]
+\end{lstlisting}
+and perform matrix-matrix multiply to get $z_n$, a much efficient method is to
+write a \texttt{for} loop.
+\begin{lstlisting}
+  for i in 1:q, j in q:-1:i
+    z[j] = z[j] + z[j+1]
+  end
+\end{lstlisting}
+
+Now we have a formulation for the predictor that is based on Taylor expansion.
+For the corrector, we are going to make use of an interpolating polynomial
+$\pi_{n}$ with order $q$ or less.
+
+%However, another perspective of those multi-step numerical schemes are from
+%polynomials with constraints directly. That is, a polynomial with $L\equiv q+1$
+%constraints one can full encode ~\cref{eq:Adams_int} and~\cref{eq:BDF_int}.
+
+\subsubsection{Adams Methods} \label{subsec:adams}
 The Adams methods are usually presented as
-\begin{equation}\label{eq:Adams_int}
+\begin{equation} \label{eq:Adams_int}
   u_{n+1} = u_n + \int_{t_n}^{t_{n+1}} P(\tau) \dd{\tau},
 \end{equation}
 where $P(t)$ is an interpolation polynomial through points $t_i, F_i$ for
-$i=n-q+1,\cdots,n$. The backward differentiation formula methods are usually
+$i=n-q+1,\cdots,n$.
+Explicit Adams methods can be thought as a polynomial interpolation that
+fulfills
+\begin{align}
+  \pi_{n-1}'(t_{n-i})&=F_{n-i}\qq{where} i=1,2,\cdots,q \\
+  \pi_{n-1}(t_{n-1})&=u_{n-1},
+\end{align}
+while the implicit Adams methods are the same with polynomials that fulfills
+\begin{align}
+  \pi_{n}(t_{n-i})'&=F_{n-i}\qq{where} i=0,1,\cdots,q-1 \\
+  \pi_{n}(t_{n-1})&=u_{n-1} \\
+  \pi_{n}(t_{n})&=u_{n}.
+\end{align}
+
+\subsubsection{BDF Methods} \label{subsec:bdf}
+The backward differentiation formula methods are usually
 presented as
-\begin{equation}\label{eq:BDF_int}
+\begin{equation} \label{eq:BDF_int}
   \sum_{j=1}^q j^{-1}\nabla^ju_{n+1} = hF_{n+1},
 \end{equation}
 where $\nabla$ is a backward difference operator\footnote{A backward
@@ -57,28 +134,21 @@ difference operator has the recurrence relation of
 \[
   \nabla^0u_n = u_n,\quad \nabla^{j+1}u_n = \nabla^ju_n-\nabla^ju_{n-1}.
 \]}.
-However, another perspective of those multi-step numerical schemes are from
-polynomials with constraints directly. That is, a polynomial with $L\equiv q+1$
-constraints one can full encode ~\cref{eq:Adams_int} and~\cref{eq:BDF_int}.
-
-\subsubsection{Adams Methods}
-Explicit Adams methods can be thought as a polynomial interpolation that
-fulfills
+Similarly, BDF methods can be thought as a polynomial interpolation
+that fulfills
 \begin{align}
-  \eta'_{n-1}(t_{n-i})&=F_{n-i}\qq{where} i=1,2,\cdots,q \\
-  \eta_{n-1}(t_{n-1})&=u_{n-1},
+  \pi_{n-1}(t_{n-i})&=u_{n-i}\qq{where} i=1,2,\cdots,q \\
+  \pi_{n-1}(t_{n-1})&=F_{n-1},
 \end{align}
 while the implicit Adams methods are polynomials that fulfills
 \begin{align}
-  \eta'_{n}(t_{n})&=F_{n}\qq{where} i=0,1,\cdots,q-1 \\
-  \eta_{n}(t_{n})&=u_{n}.
+  \pi_{n}(t_{n})&=u_{n}\qq{where} i=0,1,\cdots,q-1 \\
+  \pi_{n}(t_{n})&=F_{n}.
 \end{align}
 Here, we define the predictors as a polynomial interpolation
 \begin{equation}
-  \hat{u}_n = \eta_{n-1}(t_n),\quad \hat{u}'_n = \eta'_{n-1}(t_n).
+  \hat{u}_n = \pi_{n-1}(t_n),\quad \hat{u}'_n = \pi_{n-1}(t_n).
 \end{equation}
-
-\subsubsection{BDF Methods}
 
 \section{Calculation of Coefficients}
 
