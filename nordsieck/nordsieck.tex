@@ -5,7 +5,23 @@
 \usepackage[capitalise,noabbrev]{cleveref}
 \usepackage[bottom]{footmisc}
 \usepackage{multicol}
-\usepackage{todo}
+\usepackage{todonotes}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes, calc, decorations, automata}
+\tikzstyle{midnode}=[
+    draw=blue!70,   % draw the border with 70% transparent blue
+    rectangle,      % the shape of the node is a rectangle
+    fill=blue!10,   % fill the box with 20% blue
+    text width=1cm,
+    text centered]
+
+\tikzstyle{smallnode}=[
+    draw=blue!70,   % draw the border with 70% transparent blue
+    rectangle,      % the shape of the node is a rectangle
+    fill=blue!10,   % fill the box with 20% blue
+    text width=0.4cm,
+    text centered]
 
 \crefformat{section}{\S#2#1#3}
 \crefformat{subsection}{\S#2#1#3}
@@ -50,8 +66,8 @@
       $u' = F(u, t)$.
     \item Let $z_n$ denote the Nordsieck vector, which is
       \[
-        z_n = \left[\frac{y_n}{0!}, h\frac{y_n'}{1!}, h^2\frac{y_n''}{2!},
-        \cdots, h^q\frac{y_n^{(q)}}{q!}\right]^T.
+        z_n = \left[\frac{u_n}{0!}, h\frac{u_n'}{1!}, h^2\frac{u_n''}{2!},
+        \cdots, h^q\frac{u_n^{(q)}}{q!}\right]^T
       \]
     \item Let $A(q)$ denote a $(q+1)\times (q+1)$ Pascal triangle matrix (lower
       triangular).
@@ -63,16 +79,16 @@
 \section{The General Form of Nordsieck Methods}
 In the Nordsieck formulation of multi-step methods we first need to find
 interpolating polynomial $\pi_{n-1}$ and $\pi_n$, which is going to be
-introduced in \cref{subsec:adams} for Adams-Bashforth method and
-\cref{subsec:bdf} for BDF(Backward differentiation formula) method. The
+introduced in \cref{sec:adams} for Adams-Bashforth method and
+\cref{sec:bdf} for BDF(Backward differentiation formula) method. The
 predictor part in the Nordsieck formulation is independent from the choice of
 interpolating polynomials. This this subsection, we going to solely discuss the
 predictor.
 
 A Nordsieck vector is a vector that is in the form of
 \begin{equation}
-        z_n = \left[\frac{y_n}{0!}, h\frac{y_n'}{1!}, h^2\frac{y_n''}{2!},
-        \cdots, h^q\frac{y_n^{(q)}}{q!}\right]^T.
+  z_n = \left[\frac{u_n}{0!}, h\frac{u_n'}{1!}, h^2\frac{u_n''}{2!},
+  \cdots, h^q\frac{u_n^{(q)}}{q!}\right]^T
 \end{equation}
 Note that this derivatives $y_{n-1}^{(j)}$ are not the exact values of
 $F^{(j)}_{n-1}$, and they are the approximations from a interpolation
@@ -103,7 +119,87 @@ $\pi_{n}$ with order $q$ or less.
 %polynomials with constraints directly. That is, a polynomial with $L\equiv q+1$
 %constraints one can full encode ~\cref{eq:Adams_int} and~\cref{eq:BDF_int}.
 
-\subsubsection{Adams Methods} \label{subsec:adams}
+\section{BDF Methods} \label{sec:bdf}
+The backward differentiation formula methods are usually
+presented as
+\begin{equation} \label{eq:BDF_int}
+  \sum_{j=1}^q j^{-1}\nabla^ju_{n+1} = hF_{n+1},
+\end{equation}
+where $\nabla$ is a backward difference operator\footnote{A backward
+difference operator has the recurrence relation of
+\[
+  \nabla^0u_n = u_n,\quad \nabla^{j+1}u_n = \nabla^ju_n-\nabla^ju_{n-1}.
+\]}.
+Similar to the Adams family, BDF methods can be thought as a polynomial
+interpolation that fulfills $L\equiv q+1$ conditions
+\begin{align}
+  \pi_{n-1}(t_{n-i})&=u_{n-i}\qq{where} i=1,2,\cdots,q \\
+  \pi_{n-1}'(t_{n-1})&=F_{n-1},
+\end{align}
+also, we can construct a corrector polynomial by $L+1$ conditions
+\begin{align}
+  \pi_{n}(t_{n-i})&=u_{n}\qq{where} i=0,1,\cdots,q \\
+  \pi'_{n}(t_{n})&=F_{n}.
+\end{align}
+Define $\hat{u}_n = \pi_{n-1}(t_n)$ and $\hat{u}'_n = \pi'_{n-1}(t_n)$. Note
+that $r=\hat{u}'_n - F_n$ does not usually vanish, so one can use it as a
+residual to calculate corrected $u_n$. We define the corrected Nordsieck vector
+by
+\begin{equation}
+  z_n = \left[\frac{u_n}{0!}, h\frac{u_n'}{1!}, h^2\frac{u_n''}{2!},
+  \cdots, h^q\frac{u_n^{(q)}}{q!}\right]^T,\quad u_n^{(j)}\equiv
+  \pi_n^{(j)}(t_n).
+\end{equation}
+
+Now, we shall compute the relation between $\hat{z}_n$ and $z_n$. Define a
+polynomial
+\begin{equation}
+  \Delta_n(t) = \pi_n(t) - \pi_{n-1}(t),
+\end{equation}
+and a correction quantity
+\begin{equation}
+  e_n = u_n - \hat{u}_n = \pi_n(t) - \pi_{n-1}(t).
+\end{equation}
+We have the relation
+\begin{equation}
+  \Delta_n(t_{n-i}) = 0, \quad i=1,2,\cdots,q,
+\end{equation}
+which leads to
+\begin{equation}
+  \Delta_n(t) = \Pi_{i=1}^q \frac{t-t_{n-i}}{t_n-t_{n-i}}e_n.
+\end{equation}
+We have
+\begin{align}
+  \Lambda_n(x) &= \Pi_{i=1}^q (1+\frac{x}{\Xi_i}) = \sum_{j=1}{q+1}l_jx^j, \quad x=\frac{t-t_n}{h},\;
+  \Xi_i = \frac{t_n-t_{n-i}}{h} \\
+  \Delta_n(t) &= \Delta_n(t_n+hx) = \Delta_n(x)e_n.
+\end{align}
+Then, we have
+\begin{align}
+  h^j\pi_n^{(j)}(t_n)/j! - h^j\pi_{n-1}^{(j)}(t_n)/j! = h^j\Delta_n^{(j)}/j! =
+  \Lambda_n^{(j)}(0)e_n/j! = l_je_n.
+\end{align}
+Define
+\begin{equation}
+  l = [l_0, l_1, \cdots, l_q],
+\end{equation}
+then
+\begin{equation}
+  z_n = \hat{z}_n + e_n l.
+\end{equation}
+This simple relation is used to calculate the corrected value.
+
+For the BDF method, the vector $l$ can be calculated as
+\begin{equation}
+  l_1 = 1,\; l_1 = \sum_{i=1}^q \Xi_i^{-1},\; l_q =
+  (\Xi_1\Xi_2\cdots\Xi_1)^{-1}.
+\end{equation}
+We also have a two-term recurrence
+\begin{equation}
+  l_j(q) = l_j(q-1) + \frac{l_{j-1}(q-1)}{\Xi_q}.
+\end{equation}
+
+\section{Adams Methods} \label{sec:adams}
 The Adams methods are usually presented as
 \begin{equation} \label{eq:Adams_int}
   u_{n+1} = u_n + \int_{t_n}^{t_{n+1}} P(\tau) \dd{\tau},
@@ -111,26 +207,27 @@ The Adams methods are usually presented as
 where $P(t)$ is an interpolation polynomial through points $t_i, F_i$ for
 $i=n-q+1,\cdots,n$.
 Explicit Adams methods can be thought as a polynomial interpolation that
-fulfills
+fulfills $L\equiv q+1$ conditions
 \begin{align} \label{eq:adams1}
   \pi_{n-1}'(t_{n-i})&=F_{n-i}\qq{where} i=1,2,\cdots,q \\
   \pi_{n-1}(t_{n-1})&=u_{n-1},
 \end{align}
 while the implicit Adams methods are the same with polynomials that fulfills
+$L+1$ conditions
 \begin{align} \label{eq:adams2}
   \pi_{n}(t_{n-i})'&=F_{n-i}\qq{where} i=0,1,\cdots,q-1 \\
   \pi_{n}(t_{n-1})&=u_{n-1} \\
   \pi_{n}(t_{n})&=u_{n}.
 \end{align}
-Here, we define that $y'_n$ is $F_n$. Note that those conditions are equivalent
+Here, we define that $u'_n$ is $F_n$. Note that those conditions are equivalent
 with the classical linear multi-step form
 \begin{equation}
-  u_n = u_{n-1} h_n\sum_{i=0}^{q-1}\beta_{ni}y'_{n-i}.
+  u_n = u_{n-1} h_n\sum_{i=0}^{q-1}\beta_{ni}u'_{n-i}.
 \end{equation}
 Here the coefficients $\beta_{ni}$ dependents on $h_j$ and order $q$. Now,
-define $\hat{y}_n = \pi_{n-1}(t_n)$ and $\hat{y}'_n = \pi'_{n-1}(t_n)$. We have
+define $\hat{u}_n = \pi_{n-1}(t_n)$ and $\hat{u}'_n = \pi'_{n-1}(t_n)$. We have
 \begin{equation} \label{eq:nl_adams}
-  hy'_n = hF_n = h\hat{y}'_n + \Delta_n l_1,
+  hu'_n = hF_n = h\hat{u}'_n + \Delta_n l_1,
 \end{equation}
 where $\Delta_n = \pi_n - \pi_{n-1}, h=h_n$ and $l_1 =
 \beta_{n0}^{-1}$. The $\Delta$ vector in \cref{eq:nl_adams} can be solved by
@@ -176,7 +273,7 @@ Hence, we can write $\Lambda_n$ as
           \dd{u}}_\text{constant}}
                = \sum_{j=1}^{q+1} l_jx^j.
 \end{equation}
-We can compute the vector $l_j$ by calculating the coefficients of
+We can compute the vector $l_j$ by first calculating the coefficients of
 $\prod_{i=1}^{q-1} (u+\Xi_i)$ and integrate it with some normalization. Here is
 an implementation which uses Vieta's formulas,
 \begin{equation}
@@ -188,15 +285,13 @@ where $x_j$ is the $j$-th roots of a polynomial.
 # This function computes the integral, from -1 to 0, of a polynomial
 # `P(x)` from the coefficients of `P` with an offset `k`.
 function int01dx(a, deg, k)
-  @inbounds begin
-    int = zero(eltype(a))
-    sign = one(eltype(a))
-    for i in 1:deg
-      int += sign * a[i]/(i+k)
-      sign = -sign
-    end
-    return int
+  int = zero(eltype(a))
+  sign = one(eltype(a))
+  for i in 1:deg
+    int += sign * a[i]/(i+k)
+    sign = -sign
   end
+  return int
 end
 
 function calc_coeff!(cache::T) where T
@@ -229,36 +324,30 @@ function calc_coeff!(cache::T) where T
   cache.tq = M1 * M0_inv * Xi_inv
 end
 \end{lstlisting}
+\todo[inline]{Order increase/decrease and error estimation. Maybe stiffness
+detection.}
 
-\subsubsection{BDF Methods} \label{subsec:bdf}
-The backward differentiation formula methods are usually
-presented as
-\begin{equation} \label{eq:BDF_int}
-  \sum_{j=1}^q j^{-1}\nabla^ju_{n+1} = hF_{n+1},
-\end{equation}
-where $\nabla$ is a backward difference operator\footnote{A backward
-difference operator has the recurrence relation of
-\[
-  \nabla^0u_n = u_n,\quad \nabla^{j+1}u_n = \nabla^ju_n-\nabla^ju_{n-1}.
-\]}.
-Similarly, BDF methods can be thought as a polynomial interpolation
-that fulfills
-\begin{align}
-  \pi_{n-1}(t_{n-i})&=u_{n-i}\qq{where} i=1,2,\cdots,q \\
-  \pi_{n-1}(t_{n-1})&=F_{n-1},
-\end{align}
-while the implicit Adams methods are polynomials that fulfills
-\begin{align}
-  \pi_{n}(t_{n})&=u_{n}\qq{where} i=0,1,\cdots,q-1 \\
-  \pi_{n}(t_{n})&=F_{n}.
-\end{align}
-Here, we define the predictors as a polynomial interpolation
-\begin{equation}
-  \hat{u}_n = \pi_{n-1}(t_n),\quad \hat{u}'_n = \pi_{n-1}(t_n).
-\end{equation}
+\section{Code organization}
+\todo[inline]{This still is a placeholder.}
+\begin{tikzpicture}[->,>=stealth,auto, very thick, scale=5]
+        % Draw the vertices.
+        \node[midnode] (s) {Start};
+        \node[smallnode, right of=s, node distance=1.8cm] (a) {1};
+        \node[smallnode, below of=a] (b) {2};
+        \node[smallnode, right of=a, node distance=1.8cm] (c) {3};
+        \node[smallnode, below of=c] (d) {4};
+        \node[smallnode, right of=c, node distance=1.8cm] (e) {5};
+        \node[midnode, below of=e] (x) {Stopp};
 
-\section{Calculation of Coefficients}
-
-\section{Equivalence with Adams and BDF methods}
+        % Connect vertices with edges
+        \path (s) edge node {} (a);
+        \path (a) edge node {} (c);
+        \path (a) edge node {} (b);
+        \path (b) edge node {} (c);
+        \path (c) edge node {} (d);
+        \path (c) edge node {} (e);
+        \path (d) edge node {} (e);
+        \path (e) edge node {} (x);
+\end{tikzpicture}
 
 \end{document}
