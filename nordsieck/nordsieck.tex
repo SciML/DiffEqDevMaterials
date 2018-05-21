@@ -170,7 +170,7 @@ which leads to
 \end{equation}
 We have
 \begin{align}
-  \Lambda_n(x) &= \Pi_{i=1}^q (1+\frac{x}{\Xi_i}) = \sum_{j=1}{q+1}l_jx^j, \quad x=\frac{t-t_n}{h},\;
+  \Lambda_n(x) &= \Pi_{i=1}^q (1+\frac{x}{\Xi_i}) = \sum_{j=0}^{q}l_jx^{j}, \quad x=\frac{t-t_n}{h},\;
   \Xi_i = \frac{t_n-t_{n-i}}{h} \\
   \Delta_n(t) &= \Delta_n(t_n+hx) = \Delta_n(x)e_n.
 \end{align}
@@ -270,8 +270,8 @@ Hence, we can write $\Lambda_n$ as
 \begin{equation}
   \Lambda_n(x) = \frac{\int_{-1}^x\prod_{i=1}^{q-1} (u+\Xi_i) \dd{u}}
           {\underbrace{\int_{-1}^0\prod_{i=1}^{q-1} (u+\Xi_i)
-          \dd{u}}_\text{constant}}
-               = \sum_{j=1}^{q+1} l_jx^j.
+          \dd{u}}_\text{constant normalization}}
+               = \sum_{j=0}^{q} l_jx^j.
 \end{equation}
 We can compute the vector $l_j$ by first calculating the coefficients of
 $\prod_{i=1}^{q-1} (u+\Xi_i)$ and integrate it with some normalization. Here is
@@ -280,7 +280,22 @@ an implementation which uses Vieta's formulas,
   \sum_{1\leq i_{1}<i_{2}<\cdots <i_{k}\leq n}x_{i_{1}}x_{i_{2}}\cdots
   x_{i_{k}}=(-1)^{k}l_{n-k},
 \end{equation}
-where $x_j$ is the $j$-th roots of a polynomial.
+where $x_j$ is the $j$-th roots of a polynomial. Here is the Julia
+implementation for computing $\int_{-1}^x\prod_{i=1}^{q-1} (u+\Xi_i) \dd{u} =
+\sum_{i=1}^{q-1} m_ix^i$.
+\begin{lstlisting}
+  # compute coefficients from the Newton polynomial
+  m[1] = ONE
+  for j in 1:order-1
+    Xi_inv = dt / dtsum
+    for i in j:-1:1
+      m[i+1] += m[i] * Xi_inv
+    end
+    dtsum += tau[j+1]
+  end
+\end{lstlisting}
+Next, we need to have a routine to integrate the coefficients of this
+polynomial. The implementation reads
 \begin{lstlisting}
 # This function computes the integral, from -1 to 0, of a polynomial
 # `P(x)` from the coefficients of `P` with an offset `k`.
@@ -293,35 +308,21 @@ function int01dx(a, deg, k)
   end
   return int
 end
-
+\end{lstlisting}
+Finally, we can combine them, we then have
+\begin{lstlisting}
 function calc_coeff!(cache::T) where T
   @unpack m, l, tau = cache
   ZERO, ONE = zero(m[1]), one(m[1])
   dtsum = dt = tau[1]
   order = cache.step
-  m[1] = ONE
-  for i in 2:order+1
-    m[i] = ZERO
-  end
-  # initialize Xi_inv
-  Xi_inv = dt / dtsum
-  # compute coefficients from the Newton polynomial
-  for j in 1:order-1
-    Xi_inv = dt / dtsum
-    for i in j:-1:1
-      m[i+1] += m[i] * Xi_inv
-    end
-    dtsum += tau[j+1]
-  end
-
+  # normalization
   M0 = int01dx(m, order, 0)
-  M1 = int01dx(m, order, 1)
   M0_inv = inv(M0)
   l[1] = ONE
   for i in 1:order
     l[i+1] = M0_inv * m[i] / i
   end
-  cache.tq = M1 * M0_inv * Xi_inv
 end
 \end{lstlisting}
 \todo[inline]{Order increase/decrease and error estimation. Maybe stiffness
