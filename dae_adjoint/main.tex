@@ -1,0 +1,258 @@
+% main.tex
+\documentclass[a4paper,9pt]{article}
+\usepackage{amsmath,amssymb,amsthm,amsbsy,amsfonts}
+\usepackage{systeme}
+\usepackage{physics}
+\usepackage{cleveref}
+\newcommand{\correspondsto}{\;\widehat{=}\;}
+\usepackage{bm}
+\usepackage{enumitem} % label enumerate
+\newtheorem{theorem}{Theorem}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+% change Q.D.E symbol
+\renewcommand\qedsymbol{$\hfill \mbox{\raggedright \rule{0.1in}{0.2in}}$}
+
+\begin{document}
+
+\author{Yingbo Ma\\
+        \tt{mayingbo5@gmail.com}}
+\title{Sensitivity of differential-algebraic equations}
+\date{March 12, 2020}
+
+\maketitle
+
+\section{Notation}
+\begin{itemize}
+  \item $M \in \mathbb{C}^{m\times m}$ denotes a mass matrix.
+
+  \item $t_0 < t_1\in \mathbb{C}$ denote constants.
+
+  \item $t \in \mathbb{C}$ denotes independent variable.
+
+  \item $p\in \mathbb{C}^n$ denotes parameters.
+
+  \item $u(p, t): \mathbb{C}^n \times \mathbb{C}\mapsto \mathbb{C}^m$ denotes
+    states.
+
+  \item $f\qty(u(p, t), p, t): \mathbb{C}^m \times \mathbb{C}^n \times
+    \mathbb{C}\mapsto \mathbb{C}^{m}$ denotes the right-hand-side of a
+    differential equation.
+
+  \item $S(p, t): \mathbb{C}^n \times \mathbb{C}\mapsto \mathbb{C}^{m\times n}$
+    denotes $\pdv{u}{p}$ (sensitivity with respect to the states).
+
+  \item $J\qty(u(p, t), p, t): \mathbb{C}^m \times \mathbb{C}^n \times
+    \mathbb{C} \mapsto \mathbb{C}^{m\times m}$ denotes $\pdv{f}{u}$ (Jacobian of
+    the differential equation with respect to the states).
+
+  \item $g(u(p, t), p, t): \mathbb{C}^m \times \mathbb{C}^n \times \mathbb{C}
+    \mapsto \mathbb{C}$ is a cost function that is sufficiently smooth.
+
+  \item $\lambda(u(p, t), p, t, t_0, t_1): \mathbb{C}^m \times \mathbb{C}^n
+    \times \mathbb{C}\times \mathbb{C}\times \mathbb{C} \mapsto \mathbb{C}^n$
+    denotes Lagrange multiplier.
+
+  \item $\lambda_\tau$ denotes $\pdv{\lambda}{\tau}$.
+\end{itemize}
+
+\section{Introduction and Forward Sensitivity Analysis}
+In many applications, we may wish to compute the gradient of the continuous cost
+function
+\begin{equation}
+  G[u] = \int_{t_0}^{t_1} g(u(p, t), p, t) \dd{t}
+\end{equation}
+with respect to the parameters $\dv{G}{p}$, where $u$ is a function that
+satisfies the differential-algebraic equation
+\begin{align} \label{eq:de}
+  M\dot{u} &= f(u(p, t), p, t), \\
+  u(t_0) &= u_0(p).
+\end{align}
+Na\"ively, we could apply Leibniz rule for integration and obtain:
+\begin{align}
+  \dv{G}{p} &= \dv{p} \int_{t_0}^{t_1} g(u(p, t), p) \dd{t} \\
+            &= \int_{t_0}^{t_1} \dv{p} g(u(p, t), p) \dd{t} \\
+            &= \int_{t_0}^{t_1} \pdv{g}{u}\pdv{u}{p} + \pdv{g}{p} \dd{t} \\
+            &= \int_{t_0}^{t_1} \pdv{g}{u}S + \pdv{g}{p} \dd{t}
+            \label{eq:dgdp}
+\end{align}
+We can get $S$ by differentiating \cref{eq:de} with respect to $p$ both sides,
+\begin{align}
+  &\dv{p}\dv{t}Mu = \dv{p}f(u(p, t), p, t) \\
+  \implies &M\dv{t}\dv{u}{p} = \pdv{f}{u}\dv{u}{p} + \pdv{f}{p} \\
+  \implies &M\dot{S} = JS + \pdv{f}{p} \label{eq:forward_sens}.
+\end{align}
+\cref{eq:forward_sens} is often referred as the forward sensitivity equation.
+It is apparent that computing $S$ can be intractable when there are large number
+of parameters, because we would have to solve a $m\times n$ differential
+equation.
+
+\section{Adjoint Sensitivity Analysis with Continuous Cost Function}
+To alleviate the computational cost of the forward sensitivity equation, we
+could add a ``$0$'' to $\dv{G}{p}$, and get:
+\begin{align}
+  \dv{G}{p} = &\dv{I}{p} \\
+  = &\int_{t_0}^{t_1} \pdv{g}{u}S + \pdv{g}{p} -
+  \lambda^*\qty(\underbrace{M\dot{S} -
+  JS - \pdv{f}{p}}_{0 \quad\cref{eq:forward_sens}}) \dd{t}.
+\end{align}
+The motivation of this step is to introduce $\dot{S}$ and an
+\textbf{\emph{arbitrary}} $\lambda$ function, and the hope is to use the classic
+technique of integration by parts to group the $S$ terms and choose the
+$\lambda$ function such that the gradient is \textbf{\emph{independent}} of
+$S$.
+
+After integration by parts, the $\lambda^* M\dot{S}$ term is
+\begin{align}
+  \int_{t_0}^{t_1} \lambda^* M\dot{S} \dd{t} = \eval{\lambda^* MS}_{t_0}^{t_1} -
+  \int_{t_0}^{t_1} \dot{\lambda}^* MS \dd{t}.
+\end{align}
+The gradient expression after grouping is then:
+\begin{align} \label{eq:simplified_sens}
+  \dv{G}{p} &= \int_{t_0}^{t_1} \pdv{g}{u}S + \pdv{g}{p}
+  + \dot{\lambda}^* MS + \lambda^* JS+ \lambda^* \pdv{f}{p} \dd{t}
+              - \eval{\lambda^* MS}_{t_0}^{t_1} \nonumber \\
+            &= \int_{t_0}^{t_1} \qty(\pdv{g}{u} + \dot{\lambda}^*M  + \lambda^*
+            J)S +\lambda^* \pdv{f}{p}  + \pdv{g}{p} \dd{t}
+              - \eval{\lambda^* MS}_{t_0}^{t_1}
+\end{align}
+It becomes obvious that we can impose the condition
+\begin{equation} \label{eq:cond}
+  \pdv{g}{u} + \dot{\lambda}^*M + \lambda^* J = \bm{0} \qq{and}
+  \lambda(t_1)^* M = \bm{0}^*,
+\end{equation}
+to make \cref{eq:simplified_sens} independent of $S$.
+
+After rearranging \cref{eq:simplified_sens} and \cref{eq:cond}, we have
+\begin{align}
+    M^*\dot{\lambda} &= -J^* \lambda - \pdv{g}{u}^*, \label{eq:adj_eq_cont}\\
+    M^* \lambda(t_1) &= \bm{0} \label{eq:init_cont}\\
+    \dv{G}{p} &= \int_{t_0}^{t_1} \lambda^* \pdv{f}{p}  + \pdv{g}{p} \dd{t}
+    + \eval{\lambda^* MS}_{t=t_0}. \label{eq:sens_int}
+\end{align}
+Here, we want to remark that the $\eval{\lambda^* MS}_{t=t_0}$ term is zero if
+the initial condition of \cref{eq:de} is independent of the parameters.
+
+\section{Adjoint Sensitivity Analysis with Discrete Cost Function}
+In many cases, we only want to compute sensitivity at specific a time point
+$\tau$, i.e. $\eval{\pdv{g(u(p, t), p, t)}{p}}_{t=\tau}$. In these cases, we
+call the cost function discrete.
+
+To reuse our previous result, we need to find a way to relate $\dv{g}{p}$ to
+$\dv{G}{p}$. There are two options, using Dirac delta distribution or using
+Leibniz integration rule. We pick the latter because it is more straight
+forward.
+
+Note we have
+\begin{align}
+  \dv{p} \dv{\tau} G[u] &= \dv{p} \dv{\tau} \int_{t_0}^{\tau} g(u(p, t), p, t) \dd{t} \\
+                        &= \dv{p}\qty[g(u, p, \tau) + \int_{t_0}^{\tau}
+                        \pdv{g}{\tau} \dd{t}] \\
+                        &= \dv{g}{p} + \int_{t_0}^{\tau}
+                        \pdv{g}{\tau}{p} \dd{t}, \label{eq:dgdp1}
+\end{align}
+and
+\begin{align}
+  \dv{\tau} \dv{p} G[u] &= \dv{\tau} \qty[\int_{t_0}^{\tau} \lambda^* \pdv{f}{p} +
+  \pdv{g}{p} \dd{t} + \eval{\lambda^* MS}_{t=t_0}] \qq{\cref{eq:sens_int}}\\
+                        &= \eval{\qty(\lambda^* \pdv{f}{p} + \pdv{g}{p})}_{t=\tau} +
+                        \int_{t_0}^\tau \lambda_\tau^* \pdv{f}{p} +
+                        \underbrace{\lambda^* \pdv{f}{p}{\tau}}_{=0}\dd{t}
+                        + \int_{t_0}^\tau \pdv{g}{\tau}{p} \dd{t} +
+                        \eval{\lambda_\tau^* MS}_{t=t_0}. \label{eq:dgdp2}
+\end{align}
+By comparing \cref{eq:dgdp1} and \cref{eq:dgdp2}, we can conclude that
+\begin{equation} \label{eq:sens_int_dis}
+  \dv{g}{p} = \eval{\qty(\lambda^* \pdv{f}{p} + \pdv{g}{p})}_{t=\tau} +
+  \int_{t_0}^\tau \lambda_\tau^* \pdv{f}{p} \dd{t} +
+  \eval{\lambda_\tau^* MS}_{t=t_0}.
+\end{equation}
+
+Now we need $\lambda_\tau$ to compute the sensitivity integral
+\cref{eq:sens_int_dis}. It can be obtained by differentiating
+\cref{eq:adj_eq_cont},
+\begin{align}
+  M^*\dot{\lambda_\tau} &= -J^* \lambda_\tau - \pdv{g}{\tau} \\
+                               &= -J^* \lambda_\tau \qq{$g$ does not
+                               depend on $\tau$}. \label{eq:adj_eq_dis}
+\end{align}
+
+We want to remark that from \cref{eq:adj_eq_dis}, we can see that the
+initialization of $\lambda_\tau$ cannot be trivial, since
+$\lambda_\tau(\tau) = \bm{0}$ can only result in uninteresting dynamics.
+
+It is important to note that $\lambda$ dependents on not only $t$ but also
+$\tau$ with a discrete cost function, since $\lambda_\tau$ is non-zero.
+
+To obtain the initialization of $\eval{\lambda_\tau}_{t=\tau}$, we can
+differentiate $\eval{\lambda(t, \tau)}_{t=\tau}$ in the constraint
+\cref{eq:init_cont} with respect to $\tau$,
+\begin{equation}
+  \dv{\tau}\qty(\eval{\lambda(t, \tau)^* M}_{t=\tau}) =
+  \qty(\underbrace{
+    \eval{\pdv{\lambda}{t}\pdv{t}{\tau}}_{t=\tau}}
+  _{\dot{\lambda}})^*
+  M + \eval{\lambda_\tau^* M}_{t=\tau} = \bm{0}^*.
+\end{equation}
+Hence, we have
+\begin{align}
+  \eval{\lambda_\tau^* M}_{t=\tau}
+  &= -\eval{\dot{\lambda}^* M}_{t=\tau} \\
+  &= \eval{\qty(J^* \lambda + \pdv{g}{u}^*)^*}_{t=\tau} \qq{\cref{eq:adj_eq_cont}}.
+\end{align}
+
+Together, the system of equations is,
+\begin{align}
+    M^*\dot{\lambda_\tau} &= -J^* \lambda_\tau \\
+    \eval{M^* \lambda_\tau}_{t=\tau} &= \eval{\qty(J^* \lambda +
+    \pdv{g}{u}^*)}_{t=\tau} \\
+    \dv{g}{p} &= \eval{\qty(\lambda^* \pdv{f}{p} + \pdv{g}{p})}_{t=\tau} +
+                          \int_{t_0}^\tau \lambda_\tau^* \pdv{f}{p} \dd{t} +
+                          \eval{\lambda_\tau^* MS}_{t=t_0}.
+\end{align}
+
+\subsection{Example: Index-I differential-algebraic equation}
+To handle singular mass matrix, we need to split the problem system into
+differential variables $\{\cdot\}^d$ and algebraic
+variables $\{\cdot\}^a$, so that $\widetilde{M}$ is fully ranked,
+\begin{align}
+  \mqty(\widetilde{M} & 0 \\ 0 & 0) \mqty(\dot{u}^d\\ \dot{u}^a) &= \mqty(f(u^d,
+  u^a, p, t)
+  \\ h(u^d, u^a, p, t)) \\
+  u^d(t_0) &= u_{d0}(p).
+\end{align}
+We have
+\begin{equation}
+  J^* = \mqty(\pdv{f}{u^d}^* & \pdv{h}{u^d}^* \\ \pdv{f}{u^a}^* &
+  \pdv{h}{u^a}^*).
+\end{equation}
+The initialization step is
+\begin{equation}
+  \mqty(\widetilde{M}^* & 0 \\ 0 & 0) \mqty(\lambda_\tau^d\\ \lambda_\tau^a) =
+  \mqty(\pdv{f}{u^d}^* & \pdv{h}{u^d}^* \\ \pdv{f}{u^a}^* &
+  \pdv{h}{u^a}^*) \mqty(\bm{0}\\ \lambda^a) + \mqty(\pdv{g^d}{u}^* \\
+  \pdv{g^a}{u}^*).
+\end{equation}
+Expanding the equation we have
+\begin{align}
+  \widetilde{M}^* \lambda_\tau^d &= \pdv{h}{u^d}^* \lambda^a + \pdv{g^d}{u}^*
+  \label{eq:ex1_sys1} \\
+  \bm{0} &= \pdv{h}{u^a}^* \lambda^a + \pdv{g^a}{u}^* \implies
+  \lambda^a = -\qty(\pdv{h}{u^a}^*)^{-1}\pdv{g^a}{u}^* \label{eq:ex1_sys2}
+\end{align}
+Plugging \cref{eq:ex1_sys2} into \cref{eq:ex1_sys1}, we obtain the
+initialization of $\lambda_\tau$
+\begin{equation}
+  \widetilde{M}^* \lambda_\tau^d(\tau) = \eval{\qty(-\pdv{h}{u^d}^*
+    \qty(\pdv{h}{u^a}^*)^{-1}\pdv{g^a}{u}^* +
+  \pdv{g^d}{u}^*)}_{t=\tau}.
+\end{equation}
+
+\nocite{cao2003adjoint}
+
+\bibliography{reference.bib}
+\bibliographystyle{siam}
+
+\end{document}
