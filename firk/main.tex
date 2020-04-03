@@ -1,0 +1,141 @@
+% main.tex
+\documentclass[a4paper,9pt]{article}
+\usepackage{amsmath,amssymb,amsthm,amsbsy,amsfonts}
+\usepackage{todonotes}
+\usepackage{systeme}
+\usepackage{physics}
+\usepackage{cleveref}
+\newcommand{\correspondsto}{\;\widehat{=}\;}
+\usepackage{bm}
+\usepackage{enumitem} % label enumerate
+\newtheorem{theorem}{Theorem}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+% change Q.D.E symbol
+\renewcommand\qedsymbol{$\hfill \mbox{\raggedright \rule{0.1in}{0.2in}}$}
+
+\begin{document}
+
+\author{Yingbo Ma\\
+        \tt{mayingbo5@gmail.com}}
+\title{Efficient Implicit Runge-Kutta Implementation}
+\date{April, 2020}
+
+\maketitle
+
+\section{Notation}
+\todo{Is this necessary?}
+
+\section{Runge-Kutta Methods}
+Runge-Kutta methods can numerically solve differential-algebraic equations (DAEs)
+that are written in the form of
+\begin{equation}
+  M \dv{u}{t} = f(u, t),\quad u(a)=u_a \in \mathbb{R}^m, \quad t\in [a, b].
+\end{equation}
+
+\begin{definition} \label{def:rk}
+  An \emph{$s$-stage Runge Kutta} has the coefficients $a_{ij}, b_i,$ and $c_j$
+  for $i=1,2,\dots,s$ and $j=1,2,\dots,s$. One can also denote the coefficients
+  simply by $\bm{A}, \bm{b},$ and $\bm{c}$. A step of the method is
+  \begin{equation} \label{eq:rk_sum}
+    u_{n+1} = u_n + \sum_{i=1}^s b_i k_i,
+  \end{equation}
+  where
+  \begin{align} \label{eq:rk_lin}
+    M z_i &= \sum_{j=1}^s a_{ij}k_j\qq{or} (I_s \otimes M) \bm{z} =
+    (\bm{A}\otimes I_m)\bm{k}, \quad g_i = u_n + z_i \\
+    k_i &= hf(g_i, t+c_ih).
+  \end{align}
+\end{definition}
+
+We observe that when $a_{ij} = 0$ for $i\ge j$, \cref{eq:rk_lin} can be computed
+without solving a system of algebraic equations, and we call methods with this
+property \emph{explicit} otherwise \emph{implicit}.
+
+We should note solving $z_i$ is much preferred over $g_i$, as they have a
+smaller magnitude. A method is stiffly accurate, i.e. the stability function
+$R(\infty) = 0$, when the matrix $\bm{A}$ is fully ranked and $a_{si} = b_i$.
+Hence, $\bm{b}^T\bm{A}^{-1}$ gives the last row of the identity matrix $I_s$. We
+can use this condition to further simplify \cref{eq:rk_sum} (by slight abuse of
+notation):
+\begin{equation} \label{eq:rk_sim}
+  u_{n+1} = u_n + \bm{b}^T\bm{k} = u_n +
+  \bm{b}^T\underbrace{\bm{A}^{-1}\bm{z}}_\text{\cref{eq:rk_lin}} = u_n +
+  \mqty(0 & \cdots & 0 & 1)\bm{z} = u_n + z_s.
+\end{equation}
+
+\section{Solving Nonlinear Systems from Implicit Runge-Kutta Methods}
+We have to solve \cref{eq:rk_lin} for $\bm{z}$ when a Runge-Kutta method is
+implicit. More explicitly, we need to solve $G(\bm{z}) = \bm{0}$, where
+\begin{equation} \label{eq:nonlinear_rk}
+  G(\bm{z}) = (I_s \otimes M) \bm{z} - h(\bm{A}\otimes I_m) \tilde{\bm{f}}(\bm{z}) \qq{and}
+  \tilde{f}(\bm{z})_i = f(u_n+z_i, t+c_i h)
+\end{equation}
+The propose of introducing a computationally expensive nonlinear
+system solving step is to combat extreme stiffness. Hence, the Jacobian matrix
+arising from \cref{eq:rk_lin} is ill-conditioned. We must use Newton
+iteration to ensure stability, since fixed-point iteration only converges for
+contracting maps, which greatly limits the step size.
+
+Astute readers may notice that the Jacobian
+\begin{equation}
+  \tilde{\bm{J}}_{ij} = \pdv{\tilde{\bm{f}}_i}{\bm{z}_j} = \pdv{f(u_n + z_i, t+c_ih)}{u}
+\end{equation}
+requires us to compute the Jacobian of $f$ at $s$ many different points, which
+is very expensive. We can approximate it by
+\begin{equation}
+  \tilde{\bm{J}}_{ij} \approx J = \pdv{f(u_n, t)}{u}.
+\end{equation}
+Our simplified Newton iteration from \cref{eq:nonlinear_rk} is then
+\begin{align} \label{eq:newton_1}
+  (I_s \otimes M - h\bm{A}\otimes J) \Delta \bm{z}^k &= -G(\bm{z}^k) = -(I_s
+  \otimes M) \bm{z}^k + h(\bm{A}\otimes I_m) \tilde{\bm{f}}(\bm{z}^k) \\
+  \bm{z}^{k+1} &= \bm{z}^{k} + \Delta \bm{z}^k \label{eq:newton_2},
+\end{align}
+where $\bm{z}^k$ is the approximation to $\bm{z}$ at the $k$-th iteration.
+
+In Hairer's Radau IIA implementation, he left multiplies \cref{eq:newton_1} by
+$(hA)^{-1} \otimes I_m$ to exploit the structure of the iteration matrix
+\cite{hairer1999stiff}, so we have
+\begin{align}
+  ((hA)^{-1} \otimes I_m)(I_s \otimes M) &= (hA)^{-1} \otimes M \\
+  ((hA)^{-1} \otimes I_m)(h\bm{A}\otimes J) &= I_s\otimes J \\
+  ((hA)^{-1} \otimes I_m)G(\bm{z}^k) &= ((hA)^{-1} \otimes M) \bm{z}^k -
+  \tilde{\bm{f}}(\bm{z}^k),
+\end{align}
+and finally,
+\begin{equation} \label{eq:newton1}
+  ((hA)^{-1} \otimes M - I_s\otimes J) \Delta \bm{z}^k = -((hA)^{-1} \otimes M)
+  \bm{z}^k + \tilde{\bm{f}}(\bm{z}^k).
+\end{equation}
+Hairer also diagonalizes $A^{-1}$, i.e.
+\begin{equation}
+  V^{-1}A^{-1}V = \Lambda,
+\end{equation}
+to decouple the $sm \times sm$ system. To transforming \cref{eq:newton1} to
+the eigenbasis of $A^{-1}$, notice
+\begin{equation}
+  A^{-1}x = b \implies V^{-1}A^{-1}x = V^{-1}b \implies \Lambda V^{-1}x =
+  V^{-1}b.
+\end{equation}
+Similarly, we have
+\begin{align}
+  &(h^{-1} \Lambda \otimes M - I_s\otimes J) (V^{-1}\otimes I_m)\Delta\bm{z}^k\\
+  =& (V^{-1}\otimes I_m)(-((hA)^{-1} \otimes M)
+  \bm{z}^k + \tilde{\bm{f}}(\bm{z}^k)).
+\end{align}
+We can introduce the transformed variable $\bm{w} = (V^{-1}\otimes I_m) \bm{z}$
+to further reduce computation, so \cref{eq:newton1} and \cref{eq:newton2} is now
+\begin{align} \label{eq:newton2}
+  (h^{-1} \Lambda \otimes M - I_s\otimes J) \Delta\bm{w}^k
+  &= -(h^{-1} \Lambda \otimes M) \bm{w}^k +
+  (V^{-1}\otimes I_m)\tilde{\bm{f}}((V\otimes I_m)\bm{w}^k) \\
+  \bm{w}^{k+1} &= \bm{w}^{k} + \Delta \bm{w}^k.
+\end{align}
+
+\bibliography{reference.bib}
+\bibliographystyle{siam}
+
+\end{document}
