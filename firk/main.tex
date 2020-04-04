@@ -50,7 +50,7 @@ Runge-Kutta methods can numerically solve differential-algebraic equations
   \end{align}
 \end{definition}
 
-We observe that when $a_{ij} = 0$ for each $i\ge j$, \cref{eq:rk_lin} can be
+We observe that when $a_{ij} = 0$ for each $j\ge i$, \cref{eq:rk_lin} can be
 computed without solving a system of algebraic equations, and we call methods
 with this property \emph{explicit} otherwise \emph{implicit}.
 
@@ -115,8 +115,8 @@ Hairer also diagonalizes $A^{-1}$, i.e.
 \begin{equation}
   V^{-1}A^{-1}V = \Lambda,
 \end{equation}
-to decouple the $sm \times sm$ system. To transforming \cref{eq:newton1} to
-the eigenbasis of $A^{-1}$, notice
+to decouple the $sm \times sm$ system. To transform \cref{eq:newton1} to the
+eigenbasis of $A^{-1}$, notice
 \begin{equation}
   A^{-1}x = b \implies V^{-1}A^{-1}x = V^{-1}b \implies \Lambda V^{-1}x =
   V^{-1}b.
@@ -128,7 +128,7 @@ Similarly, we have
   \bm{z}^k + \tilde{\bm{f}}(\bm{z}^k)).
 \end{align}
 We can introduce the transformed variable $\bm{w} = (V^{-1}\otimes I_m) \bm{z}$
-to further reduce computation, so \cref{eq:newton1} and \cref{eq:newton2} is now
+to further reduce computation, so \cref{eq:newton_1} and \cref{eq:newton_2} is now
 \begin{align} \label{eq:newton2}
   (h^{-1} \Lambda \otimes M - I_s\otimes J) \Delta\bm{w}^k
   &= -(h^{-1} \Lambda \otimes M) \bm{w}^k +
@@ -140,16 +140,15 @@ iteration matrix or the $W$-matrix.
 
 \subsection{Stopping Criteria}
 Note that throughout this subsection, $\norm{\cdot}$ denotes the norm that is
-used by the time-stepping error estimate. We are using this choice because we
-need to make sure that convergent results from a nonlinear solver does not
-introduce step rejections.
+used by the time-stepping error estimate. By doing so, we can be confident that
+convergent results from a nonlinear solver do not introduce step rejections.
 
 There are two approaches to estimate the error of a nonlinear solver, by the
 displacement $\Delta \bm{z}^k$ or by the residual $G(\bm{z}^k)$. The residual
 behaves like the error scaled by the Lipschitz constant of $G$. Stiff equations
-have a large Lipschitz constant. However, this constant is not known a prior.
-This makes the residual test unreliable. Hence, we are going to focus on the
-analysis of the displacement.
+have a large Lipschitz constant, furthermore, this constant is not known a
+priori. This makes the residual test unreliable. Hence, we are going to focus on
+the analysis of the displacement.
 
 Simplified Newton iteration converges linearly, so we can model the convergence
 process as
@@ -171,16 +170,16 @@ If $\theta<1$, by the triangle inequality, we then have
   \norm{\Delta\bm{z}^{k}}\sum_{i=0}^\infty \theta^i = \frac{\theta}{1-\theta}
   \norm{\Delta\bm{z}^{k}}.
 \end{equation}
-To ensure nonlinear solver error does not cause that step rejection, we need a
+To ensure the nonlinear solver error does not cause step rejections, we need a
 safety factor $\kappa = 1/10$. Our first convergence criterion is
 \begin{equation}
   \eta_k \norm{\Delta\bm{z}^k} \le \kappa, \qq{if}
   k \ge 1 \text{ and } \theta \le 1, ~ \eta_k=\frac{\theta_k}{1-\theta_k}.
 \end{equation}
-One major drawback with this convergence criterion is that we can only check it
-after two iterations. To cover the case of convergence in the first iteration,
-we need to define $\eta_0$. It is reasonable to believe that the convergence
-rate remains relatively constant with the same $W$-matrix, so if $W$ is reused
+One major drawback with this criterion is that we can only check it after one
+iteration. To cover the case of convergence in the first iteration, we need to
+define $\eta_0$. It is reasonable to believe that the convergence rate remains
+relatively constant with the same $W$-matrix, so if $W$ is reused
 \todo[inline]{Add the reuse logic section} from the previous nonlinear solve,
 then we define
 \begin{equation}
@@ -206,18 +205,18 @@ to limit $\theta$ to be small. Therefore, the first criterion is
 \end{equation}
 Also, the algorithm diverges if the max number of iterations is reached without
 convergence. A subtler criterion for divergence is: no convergence is predicted
-by extrapolating to $\norm{\Delta\bm{z}^k_{\max}}$, e.g.
+by extrapolating to $\norm{\Delta\bm{z}^k_{\max}}$, i.e.
 \begin{equation}
   \frac{\theta_k^{k_{\max}-k}}{1-\theta_k} \norm{\Delta\bm{z}^k} > \kappa.
 \end{equation}
 \todo[inline]{OrdinaryDiffEq.jl doesn't actually check this condition anymore.}
 
-\subsection{$W$-matrix reuse}
+\subsection{$W$-matrix Reuse}
 
-\section{Step size control}
-\subsection{Standard (Integral) control}
-\subsection{Predictive (modified PI) control}
+\section{Step Size Control}
 \subsection{Smooth Error Estimation}
+\subsection{Standard (Integral) Control}
+\subsection{Predictive (Modified PI) Control}
 
 \nocite{hairer2010solving}
 
