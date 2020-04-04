@@ -25,12 +25,12 @@
 
 \maketitle
 
-\section{Notation}
-\todo{Is this necessary?}
+% \section{Notation}
+% \todo[inline]{Is this necessary?}
 
 \section{Runge-Kutta Methods}
-Runge-Kutta methods can numerically solve differential-algebraic equations (DAEs)
-that are written in the form of
+Runge-Kutta methods can numerically solve differential-algebraic equations
+(DAEs) that are written in the form of
 \begin{equation}
   M \dv{u}{t} = f(u, t),\quad u(a)=u_a \in \mathbb{R}^m, \quad t\in [a, b].
 \end{equation}
@@ -50,16 +50,16 @@ that are written in the form of
   \end{align}
 \end{definition}
 
-We observe that when $a_{ij} = 0$ for $i\ge j$, \cref{eq:rk_lin} can be computed
-without solving a system of algebraic equations, and we call methods with this
-property \emph{explicit} otherwise \emph{implicit}.
+We observe that when $a_{ij} = 0$ for each $i\ge j$, \cref{eq:rk_lin} can be
+computed without solving a system of algebraic equations, and we call methods
+with this property \emph{explicit} otherwise \emph{implicit}.
 
 We should note solving $z_i$ is much preferred over $g_i$, as they have a
 smaller magnitude. A method is stiffly accurate, i.e. the stability function
 $R(\infty) = 0$, when the matrix $\bm{A}$ is fully ranked and $a_{si} = b_i$.
-Hence, $\bm{b}^T\bm{A}^{-1}$ gives the last row of the identity matrix $I_s$. We
-can use this condition to further simplify \cref{eq:rk_sum} (by slight abuse of
-notation):
+Hence, for such methods $\bm{b}^T\bm{A}^{-1}$ gives the last row of the identity
+matrix $I_s$. We can use this condition to further simplify \cref{eq:rk_sum} (by
+slight abuse of notation):
 \begin{equation} \label{eq:rk_sim}
   u_{n+1} = u_n + \bm{b}^T\bm{k} = u_n +
   \bm{b}^T\underbrace{\bm{A}^{-1}\bm{z}}_\text{\cref{eq:rk_lin}} = u_n +
@@ -73,9 +73,9 @@ implicit. More explicitly, we need to solve $G(\bm{z}) = \bm{0}$, where
   G(\bm{z}) = (I_s \otimes M) \bm{z} - h(\bm{A}\otimes I_m) \tilde{\bm{f}}(\bm{z}) \qq{and}
   \tilde{f}(\bm{z})_i = f(u_n+z_i, t+c_i h)
 \end{equation}
-The propose of introducing a computationally expensive nonlinear
-system solving step is to combat extreme stiffness. Hence, the Jacobian matrix
-arising from \cref{eq:rk_lin} is ill-conditioned. We must use Newton
+The propose of introducing a computationally expensive nonlinear system solving
+step is to combat extreme stiffness. The Jacobian matrix arising from
+\cref{eq:rk_lin} is ill-conditioned due to stiffness. Thus, we must use Newton
 iteration to ensure stability, since fixed-point iteration only converges for
 contracting maps, which greatly limits the step size.
 
@@ -83,8 +83,8 @@ Astute readers may notice that the Jacobian
 \begin{equation}
   \tilde{\bm{J}}_{ij} = \pdv{\tilde{\bm{f}}_i}{\bm{z}_j} = \pdv{f(u_n + z_i, t+c_ih)}{u}
 \end{equation}
-requires us to compute the Jacobian of $f$ at $s$ many different points, which
-is very expensive. We can approximate it by
+requires us to compute the Jacobian of $f$ at $s$ many points, which can very
+expensive. We can approximate it by
 \begin{equation}
   \tilde{\bm{J}}_{ij} \approx J = \pdv{f(u_n, t)}{u}.
 \end{equation}
@@ -96,9 +96,10 @@ Our simplified Newton iteration from \cref{eq:nonlinear_rk} is then
 \end{align}
 where $\bm{z}^k$ is the approximation to $\bm{z}$ at the $k$-th iteration.
 
-In Hairer's Radau IIA implementation, he left multiplies \cref{eq:newton_1} by
-$(hA)^{-1} \otimes I_m$ to exploit the structure of the iteration matrix
-\cite{hairer1999stiff}, so we have
+\subsection{Change of Basis}
+\todo[inline]{discuss SDIRK}In Hairer's Radau IIA implementation, he left
+multiplies \cref{eq:newton_1} by $(hA)^{-1} \otimes I_m$ to exploit the
+structure of the iteration matrix \cite{hairer1999stiff}, so we have
 \begin{align}
   ((hA)^{-1} \otimes I_m)(I_s \otimes M) &= (hA)^{-1} \otimes M \\
   ((hA)^{-1} \otimes I_m)(h\bm{A}\otimes J) &= I_s\otimes J \\
@@ -134,6 +135,91 @@ to further reduce computation, so \cref{eq:newton1} and \cref{eq:newton2} is now
   (V^{-1}\otimes I_m)\tilde{\bm{f}}((V\otimes I_m)\bm{w}^k) \\
   \bm{w}^{k+1} &= \bm{w}^{k} + \Delta \bm{w}^k.
 \end{align}
+People usually call the matrix $W=(h^{-1} \Lambda \otimes M - I_s\otimes J)$ the
+iteration matrix or the $W$-matrix.
+
+\subsection{Stopping Criteria}
+Note that throughout this subsection, $\norm{\cdot}$ denotes the norm that is
+used by the time-stepping error estimate. We are using this choice because we
+need to make sure that convergent results from a nonlinear solver does not
+introduce step rejections.
+
+There are two approaches to estimate the error of a nonlinear solver, by the
+displacement $\Delta \bm{z}^k$ or by the residual $G(\bm{z}^k)$. The residual
+behaves like the error scaled by the Lipschitz constant of $G$. Stiff equations
+have a large Lipschitz constant. However, this constant is not known a prior.
+This makes the residual test unreliable. Hence, we are going to focus on the
+analysis of the displacement.
+
+Simplified Newton iteration converges linearly, so we can model the convergence
+process as
+\begin{equation}
+  \norm{\Delta \bm{z}^{k+1}} \le \theta \norm{\Delta \bm{z}^{k}}.
+\end{equation}
+The convergence rate at $k$-th iteration $\theta_k$ can be estimated by
+\begin{equation}
+  \theta_k = \frac{\norm{\Delta\bm{z}^{k}}}{\norm{\Delta\bm{z}^{k-1}}},\quad k\ge 1.
+\end{equation}
+Notice we have the relation
+\begin{equation}
+  \bm{z}^{k+1} - \bm{z} = \sum_{i=0}^\infty \Delta\bm{z}^{k+i+1}.
+\end{equation}
+If $\theta<1$, by the triangle inequality, we then have
+\begin{equation}
+  \norm{\bm{z}^{k+1} - \bm{z}^{k}} \le
+  \norm{\Delta\bm{z}^{k+1}}\sum_{i=0}^\infty \theta^i \le \theta
+  \norm{\Delta\bm{z}^{k}}\sum_{i=0}^\infty \theta^i = \frac{\theta}{1-\theta}
+  \norm{\Delta\bm{z}^{k}}.
+\end{equation}
+To ensure nonlinear solver error does not cause that step rejection, we need a
+safety factor $\kappa = 1/10$. Our first convergence criterion is
+\begin{equation}
+  \eta_k \norm{\Delta\bm{z}^k} \le \kappa, \qq{if}
+  k \ge 1 \text{ and } \theta \le 1, ~ \eta_k=\frac{\theta_k}{1-\theta_k}.
+\end{equation}
+One major drawback with this convergence criterion is that we can only check it
+after two iterations. To cover the case of convergence in the first iteration,
+we need to define $\eta_0$. It is reasonable to believe that the convergence
+rate remains relatively constant with the same $W$-matrix, so if $W$ is reused
+\todo[inline]{Add the reuse logic section} from the previous nonlinear solve,
+then we define
+\begin{equation}
+  \eta_0 = \eta_{\text{old}},
+\end{equation}
+where $\eta_{\text{old}}$ is the finial $\eta_k$ from the previous nonlinear
+solve, otherwise we define
+\begin{equation}
+  \eta_0 = \max(\eta_{\text{old}}, ~\text{eps}(\text{relative
+  tolerance}))^{0.8}.
+\end{equation}
+In the first iteration, we also check
+\begin{equation}
+  \Delta\bm{z}^{1} < 10^{-5}
+\end{equation}
+for convergence. \todo[inline]{OrdinaryDiffEq.jl also checks
+\texttt{iszero(ndz)}. It seems redundant in hindsight.}
+
+Moreover, we need to define the divergence criteria. It is obvious that we want
+to limit $\theta$ to be small. Therefore, the first criterion is
+\begin{equation}
+  \theta_k > 2.
+\end{equation}
+Also, the algorithm diverges if the max number of iterations is reached without
+convergence. A subtler criterion for divergence is: no convergence is predicted
+by extrapolating to $\norm{\Delta\bm{z}^k_{\max}}$, e.g.
+\begin{equation}
+  \frac{\theta_k^{k_{\max}-k}}{1-\theta_k} \norm{\Delta\bm{z}^k} > \kappa.
+\end{equation}
+\todo[inline]{OrdinaryDiffEq.jl doesn't actually check this condition anymore.}
+
+\subsection{$W$-matrix reuse}
+
+\section{Step size control}
+\subsection{Standard (Integral) control}
+\subsection{Predictive (modified PI) control}
+\subsection{Smooth Error Estimation}
+
+\nocite{hairer2010solving}
 
 \bibliography{reference.bib}
 \bibliographystyle{siam}
