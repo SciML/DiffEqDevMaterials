@@ -165,7 +165,7 @@ Notice we have the relation
 \end{equation}
 If $\theta<1$, by the triangle inequality, we then have
 \begin{equation}
-  \norm{\bm{z}^{k+1} - \bm{z}^{k}} \le
+  \norm{\bm{z}^{k+1} - \bm{z}} \le
   \norm{\Delta\bm{z}^{k+1}}\sum_{i=0}^\infty \theta^i \le \theta
   \norm{\Delta\bm{z}^{k}}\sum_{i=0}^\infty \theta^i = \frac{\theta}{1-\theta}
   \norm{\Delta\bm{z}^{k}}.
@@ -199,13 +199,14 @@ for convergence. \todo[inline]{OrdinaryDiffEq.jl also checks
 \texttt{iszero(ndz)}. It seems redundant in hindsight.}
 
 Moreover, we need to define the divergence criteria. It is obvious that we want
-to limit $\theta$ to be small. Therefore, the first criterion is
+to limit $\theta$ to be small. Therefore, the first divergence criterion is
 \begin{equation}
   \theta_k > 2.
 \end{equation}
-Also, the algorithm diverges if the max number of iterations is reached without
-convergence. A subtler criterion for divergence is: no convergence is predicted
-by extrapolating to $\norm{\Delta\bm{z}^k_{\max}}$, i.e.
+Also, the algorithm diverges if the max number of iterations $k_{\max}$ is
+reached without convergence. A subtler criterion for divergence is: no
+convergence is predicted by extrapolating to $\norm{\Delta\bm{z}^k_{\max}}$,
+i.e.
 \begin{equation}
   \frac{\theta_k^{k_{\max}-k}}{1-\theta_k} \norm{\Delta\bm{z}^k} > \kappa.
 \end{equation}
