@@ -1,0 +1,143 @@
+\documentclass[a4paper,9pt]{article}
+\usepackage{amsmath,amssymb,amsthm,amsbsy,amsfonts}
+\usepackage{todonotes}
+\usepackage{systeme}
+\usepackage{physics}
+\usepackage{cleveref}
+\newcommand{\correspondsto}{\;\widehat{=}\;}
+\usepackage{bm}
+\usepackage{enumitem} % label enumerate
+\newtheorem{theorem}{Theorem}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+% change Q.E.D symbol
+\renewcommand\qedsymbol{$\hfill \mbox{\raggedright \rule{0.1in}{0.2in}}$}
+
+\begin{document}
+
+\author{Yingbo Ma\\
+        \tt{mayingbo5@gmail.com}}
+\title{A Brief Note on the Nonlinear Systems Arise from Stiff Equations}
+\date{May 31, 2020}
+
+\maketitle
+
+\section{Diagonally Implicit Runge-Kutta Methods}
+Runge-Kutta methods and linear multistep methods are two major kinds of methods
+that numerically solve ordinary differential equations (ODE) and
+differential-algebraic equations (DAEs). We are going to focus on DAEs in the
+mass matrix form, since ODE is a subset of DAE. Mass matrix DAEs are in the form
+of
+\begin{equation}
+  M \dv{u}{t} = f(u, t),\quad u(a)=u_a \in \mathbb{R}^m, \quad t\in [a, b].
+\end{equation}
+
+Fully implicit methods and the implementation details of Newton iteration are
+covered in the FIRK note. We will formulate the Newton iteration for diagonally
+implicit Runge-Kutta (DIRK) methods in this section.
+
+An $s$-stage DIRK method in general can be written as
+\begin{equation}
+  u_{n+1} = u_n + h \sum_{i=1}^s b_i k_i,
+\end{equation}
+where
+\begin{equation}
+  M k_i = f\qty(u_n + h\sum_{j=1}^i a_{ij} k_j, t_{n}+c_{i}h),
+\end{equation}
+$h$ is the step size, and $a_{ij}, b_i,$ and $c_j$ are scalar constants for each
+$i$ and $j$.
+
+We can isolate the implicit equation from constants and get
+\begin{equation}
+  M k_i = f\qty(\underbrace{u_n + h\qty(\sum_{j=1}^{i-1} a_{ij} k_j
+  )}_\text{constant part} + \underbrace{h a_{ii} k_i}_\text{implicit part},
+  t_{n}+c_{i}h)
+\end{equation}
+We can further simplify the RK expression by introducing $z_i=hk_i$ and let the
+constant part to be \texttt{innertmp}, then we
+have
+\begin{align}
+  u_{n+1} &= u_n + \sum_{i=1}^s b_i z_i \\
+  M z_i &= h f\qty(\texttt{innertmp} + a_{ii} z_i, t_{n}+c_{i}h)
+  \label{eq:nonlinear_dirk}.
+\end{align}
+Hence the Newton iteration for solving \cref{eq:nonlinear_dirk} is
+\begin{align}
+  \qty(-M + h a_{ii}J) \Delta^j_i &= h f\qty(\texttt{innertmp} + a_{ii} z^j_i,
+  t_{n}+c_{i}h) - M z^j_i \\
+  z^{j+1}_i &= z^j_i - \Delta^j_i
+\end{align}
+After the $W$-transformation \cite{hairer2010solving}, we obtain
+\begin{align} \label{eq:newton_dirk}
+  \qty(-\frac{1}{h a_{ii}}M + J) \Delta^j_i &= \frac{1}{h a_{ii}} \qty(h
+  f\qty(\texttt{innertmp} + a_{ii} z^j_i, t_{n}+c_{i}h) - M z^j_i) \\
+  z^{j+1}_i &= z^j_i - \Delta^j_i
+\end{align}
+
+The above formation is the generalization of the Newton iteration proposed by
+Hosea and Shampine \cite{hosea1996analysis}.
+
+\section{Linear Multistep Methods}
+The general form for an $s$-step linear multistep method (LMM) is
+\begin{equation}
+  M \sum_{i=0}^s \alpha_{i} u_{n-i} = h \sum_{i=0}^s \beta_{i} f(u_{n-i},
+  t_{n-i}).
+\end{equation}
+We can separate the constant terms, and get
+\begin{equation}
+  \alpha_{0} M u_{n} = \underbrace{\qty(h \sum_{i=1}^s \beta_{i} f(u_{n-i},
+  t_{n-i})) - \qty(M \sum_{i=1}^s \alpha_{i} u_{n-i})}_\text{constant part} + h
+  \beta_{0} f(u_{n}, t_{n}).
+\end{equation}
+Let the constant part be \texttt{outertmp}, then we have
+\begin{equation}
+  \alpha_{0} M u_{n} = \texttt{outertmp} + h \beta_{0} f(u_{n}, t_{n}).
+\end{equation}
+Naturally, the Newton iteration is
+\begin{align}
+  \qty(-\alpha_{0} M + h\beta_{0}J) \Delta^j &= \texttt{outertmp} + h \beta_{0}
+  f(u^j_{n}, t_{n}) - \alpha_{0} M u^j_{n} \\
+  u^{j+1}_n &= u^j_n - \Delta^j.
+\end{align}
+After the $W$-transformation \cite{hairer2010solving}, we obtain
+\begin{align} \label{eq:newton_lmm}
+  \qty(-\frac{\alpha_{0}}{h\beta_{0}} M + J) \Delta^j &=
+  \frac{1}{h\beta_{0}} \qty(\texttt{outertmp} + h \beta_{0} f(u^j_{n}, t_{n}) -
+  \alpha_{0} M u^j_{n}) \\
+  u^{j+1}_n &= u^j_n - \Delta^j.
+\end{align}
+
+\subsection{Nordsieck Formulation}
+For the sake of completeness, we shall demonstrate the Nordsieck formulation
+too. The fundamental object that we need to solve for is the difference between
+the predictor and the corrector, i.e. $u_n - u_{n(0)}$, where $\{\cdot\}_{n(0)}$
+denotes the predictor. The general form
+of the nonlinear equation is
+\begin{equation}
+  M (u_n - u_{n(0)}) = h\chi \; \qty(f(u_n, t_n) - f(u_{n(0)}, t_n)),
+\end{equation}
+where $\chi$ is a scalar constant.
+Let's separate the constant part,
+\begin{equation}
+  M u_n = h\chi f(u_n, t_n) + \underbrace{M u_{n(0)} - h\chi f(u_{n(0)},
+  t_n)}_\text{constant part},
+\end{equation}
+The Newton iteration is then
+\begin{align}
+  \qty(-M + h\chi J) \Delta^j &= \texttt{outertmp} + h\chi f(u^j_n, t_n) - M
+  u^j_n, \\
+  u^{j+1}_n &= u^j_n - \Delta^j.
+\end{align}
+After the $W$-transformation \cite{hairer2010solving}, we obtain
+\begin{align} \label{eq:newton_nord}
+  \qty(-\frac{1}{h\chi}M + J) \Delta^j &= \frac{1}{h\chi}\qty(\texttt{outertmp} + h\chi f(u^j_n, t_n) - M
+  u^j_n), \\
+  u^{j+1}_n &= u^j_n - \Delta^j.
+\end{align}
+
+\bibliography{reference.bib}
+\bibliographystyle{siam}
+
+\end{document}
