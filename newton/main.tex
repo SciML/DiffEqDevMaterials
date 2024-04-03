@@ -69,7 +69,7 @@ Hence the Newton iteration for solving \cref{eq:nonlinear_dirk} is
   t_{n}+c_{i}h) - M z^j_i \\
   z^{j+1}_i &= z^j_i - \Delta^j_i
 \end{align}
-After the $W$-transformation \cite{hairer2010solving}, we obtain
+After the $W$-transformation \cite[Chapter~IV.5]{hairer2010solving}, we obtain
 \begin{align} \label{eq:newton_dirk}
   \qty(-\frac{1}{h a_{ii}}M + J) \Delta^j_i &= \frac{1}{h a_{ii}} \qty(h
   f\qty(\texttt{innertmp} + a_{ii} z^j_i, t_{n}+c_{i}h) - M z^j_i) \\
@@ -101,7 +101,7 @@ Naturally, the Newton iteration is
   f(u^j_{n}, t_{n}) - \alpha_{0} M u^j_{n} \\
   u^{j+1}_n &= u^j_n - \Delta^j.
 \end{align}
-After the $W$-transformation \cite{hairer2010solving}, we obtain
+After the $W$-transformation \cite[Chapter~IV.5]{hairer2010solving}, we obtain
 \begin{align} \label{eq:newton_lmm}
   \qty(-\frac{\alpha_{0}}{h\beta_{0}} M + J) \Delta^j &=
   \frac{1}{h\beta_{0}} \qty(\texttt{outertmp} + h \beta_{0} f(u^j_{n}, t_{n}) -
@@ -130,7 +130,7 @@ The Newton iteration is then
   u^j_n, \\
   u^{j+1}_n &= u^j_n - \Delta^j.
 \end{align}
-After the $W$-transformation \cite{hairer2010solving}, we obtain
+After the $W$-transformation \cite[Chapter~IV.5]{hairer2010solving}, we obtain
 \begin{align} \label{eq:newton_nord}
   \qty(-\frac{1}{h\chi}M + J) \Delta^j &= \frac{1}{h\chi}\qty(\texttt{outertmp} + h\chi f(u^j_n, t_n) - M
   u^j_n), \\
